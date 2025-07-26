@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Запрещаем индексацию API эндпоинтов и потенциально служебных путей
+Disallow: /api/
+Disallow: /admin/ 
+
+# Укажите путь к вашей карте сайта
+Sitemap: https://shaman-ai.kz/sitemap.xml 

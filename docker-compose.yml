@@ -1,0 +1,64 @@
+version: '3.8'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shaman_ai_app_cs # cs - coming soon
+    restart: unless-stopped
+    ports:
+      - "8080:8080" # Проброс порта 8080 контейнера на порт 8080 хоста VPS
+    volumes:
+      - ./uploads_prod_cs:/app/uploads # Директория для загрузок на хосте
+    environment:
+      # Все переменные будут взяты из файла .env на сервере
+      - APP_ENV=${APP_ENV}
+      - BASE_URL=${BASE_URL}
+      - PORT=${PORT}
+      - DB_HOST=${DB_HOST} # Будет 'db' - имя сервиса MariaDB
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - REMOTE_LLM_API_KEY=${REMOTE_LLM_API_KEY}
+      - REMOTE_LLM_API_URL=${REMOTE_LLM_API_URL}
+      - REMOTE_LLM_MODEL_NAME=${REMOTE_LLM_MODEL_NAME}
+      - CSRF_AUTH_KEY=${CSRF_AUTH_KEY}
+      - UPLOAD_PATH=${UPLOAD_PATH}
+      - FIRST_ADMIN_EMAIL=${FIRST_ADMIN_EMAIL} # Для авто-назначения админа
+      # Для SMTP и платежки можно пока не задавать или оставить пустыми в .env на сервере
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - EMAIL_SENDER=${EMAIL_SENDER}
+      - PAYMENT_GATEWAY_PUBLISHABLE_KEY=${PAYMENT_GATEWAY_PUBLISHABLE_KEY}
+      - PAYMENT_GATEWAY_SECRET_KEY=${PAYMENT_GATEWAY_SECRET_KEY}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - PRICE_ID=${PRICE_ID}
+    depends_on:
+      - db
+    networks:
+      - shaman-network # Изменено имя сети для ясности
+
+  db:
+    image: mariadb:10.6 # Используем официальный образ MariaDB
+    container_name: shaman_ai_db_cs
+    restart: unless-stopped
+    # Не нужно пробрасывать порт БД наружу, если доступ только из контейнера app
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD} # Задайте в .env на сервере
+      MYSQL_DATABASE: ${DB_NAME} # Возьмется из .env на сервере
+      MYSQL_USER: ${DB_USER}     # Возьмется из .env на сервере
+      MYSQL_PASSWORD: ${DB_PASSWORD} # Возьмется из .env на сервере
+    volumes:
+      - shaman_db_data_cs:/var/lib/mysql # Docker volume для персистентности данных БД
+    networks:
+      - shaman-network
+
+volumes:
+  shaman_db_data_cs: # Имя volume должно быть уникальным для этой установки
+
+networks:
+  shaman-network: # Используем одно и то же имя сети
+    driver: bridge

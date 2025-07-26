@@ -1,0 +1,16 @@
+.git
+.vscode
+configs/.env
+uploads_dev
+*.env
+*.log
+coverage.out
+./shaman-ai.kz/.DS_Store
+./shaman-ai.kz/templates/.DS_Store
+./shaman-ai.kz/static/.DS_Store
+./shaman-ai.kz/static/img/.DS_Store
+./shaman-ai.kz/cmd/.DS_Store
+./shaman-ai.kz/internal/.DS_Store
+shaman-ai-server # Если вы компилируете локально для тестов
+uploads_dev/
+# Любые другие локальные файлы/папки, не нужные в образе

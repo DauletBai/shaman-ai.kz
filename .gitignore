@@ -1,0 +1,79 @@
+# === Go build artifacts ===
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.app
+
+# === Object & Archive files ===
+*.o
+*.a
+
+# === Build, dist, vendor directories ===
+/bin/
+/build/
+/dist/
+/vendor/
+/tmp/
+
+# === IDEs and OS junk ===
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+ehthumbs.db
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+Desktop.ini
+*~
+*.swp
+*.swo
+
+# === Logs ===
+*.log
+logs/
+log/
+
+# === Environment & secrets ===
+.env
+.env.*
+configs/.env
+configs/config.yaml
+!configs/.env.example
+!configs/config.example.yaml
+
+# === Uploads and temp files ===
+uploads_dev/
+uploads/
+temp_files/
+
+# === Node/Frontend (если появится) ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+public/build/
+
+# === Coverage/test output ===
+coverage.*
+*.cover
+profile.out
+*.prof
+*.html
+
+# === Local DB/test data ===
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+
+# === Ollama/AI models (если появятся) ===
+# ollama_models/
+# *.gguf
