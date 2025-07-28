@@ -70,7 +70,6 @@ profile.out
 
 # === Local DB/test data ===
 *.db
-*.sqlite
 *.sqlite3
 *.dump
 
