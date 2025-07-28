@@ -15,14 +15,3 @@ CREATE TABLE IF NOT EXISTS payments (
     INDEX idx_payments_user_id (user_id),
     INDEX idx_payments_subscription_id (subscription_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- migrations/014_create_payments_table.up.sql
-CREATE TABLE IF NOT EXISTS payments (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  user_id BIGINT NOT NULL,
-  bcc_order_id VARCHAR(64) NOT NULL,
-  amount INT NOT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'pending',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);

@@ -25,7 +25,6 @@ import (
 var sessionManager *scs.SessionManager
 var shamanSystemPrompt string
 var generalSystemPrompt string
-var smokingSystemPrompt string // Пока не используется активно, но объявлена
 
 func main() {
 	configPath := "configs/config.yaml"

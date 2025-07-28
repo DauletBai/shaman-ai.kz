@@ -1,3 +1,4 @@
+// internal/db/payments_db.go
 package db
 
 import (

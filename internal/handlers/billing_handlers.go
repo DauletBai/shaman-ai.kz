@@ -2,16 +2,12 @@
 package handlers
 
 import (
-	//"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/xml"
-	//"fmt"
-	//"io"
 	"log/slog"
 	"net/http"
 	"sort"
-	//"strings"
 	"time"
 
 	"shaman-ai.kz/internal/config"
@@ -20,7 +16,6 @@ import (
 	"shaman-ai.kz/internal/models"
 
 	"github.com/alexedwards/scs/v2"
-	//"github.com/google/uuid"
 )
 
 // ... (структуры Request, Attribute, Signature, Response, Transaction, WebhookNotification без изменений) ...
@@ -66,8 +61,6 @@ type WebhookNotification struct {
 	Amount    int64    `xml:"amount"`
 	Signature string   `xml:"signature"`
 }
-
-
 type BillingHandlers struct {
 	SessionManager *scs.SessionManager
 	Config         *config.Config
