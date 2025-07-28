@@ -20,6 +20,7 @@
 /tmp/
 
 # === IDEs and OS junk ===
+.gitignore
 .idea/
 .vscode/
 .DS_Store
