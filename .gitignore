@@ -47,7 +47,7 @@ log/
 configs/.env
 configs/config.yaml
 !configs/.env.example
-prompt_shaman.txt
+configs/prompt_shaman.txt
 
 # === Uploads and temp files ===
 uploads_dev/
