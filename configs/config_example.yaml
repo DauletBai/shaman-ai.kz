@@ -1,0 +1,46 @@
+# configs/config.yaml
+site_name: "Sham'an"
+site_description: "Your universal family AI"
+current_year: 0 
+
+# Значения по умолчанию, могут быть переопределены переменными окружения
+base_url: "http://localhost:8080"
+port: 8080
+app_env: "development" # "development" или "production"
+upload_path: "./uploads_dev" # Для локальной разработки, можно переопределить через UPLOAD_PATH
+
+email: # Новая секция
+  smtp_host: "" # Будет взято из SMTP_HOST
+  smtp_port: 0    # Будет взято из SMTP_PORT (например, 587 для TLS)
+  smtp_user: "" # Будет взято из SMTP_USER
+  # smtp_password: "" # Только из ENV
+  sender: "support@shaman-ai.kz" # Замените или возьмите из EMAIL_SENDER
+
+remote_llm:
+  api_key: "" # Будет взято из REMOTE_LLM_API_KEY
+  api_url: "https://api.fireworks.ai/inference/v1/chat/xxxxxxxxxxx"
+  model_name: "accounts/fireworks/models/llama4-maverickxxxxxxxxxxxxxxx"
+  general_system_prompt_path: "configs/prompt_general.txt"
+  shaman_system_prompt_path: "configs/prompt_shaman.txt"
+  request_timeout_seconds: 90
+  token_cost_input_per_million: 0.2
+  token_cost_output_per_million: 1.0
+
+database:
+  host: "localhost" # Для локальной разработки, в проде из DB_HOST
+  port: 3306      # Для локальной разработки, в проде из DB_PORT
+  user: "shaman_user_dev" # Для локальной разработки, в проде из DB_USER
+  password: ""    # Будет взято из DB_PASSWORD
+  dbname: "shaman_db_dev" # Для локальной разработки, в проде из DB_NAME
+  sslmode: "disable"
+
+billing:
+  price_id: "price_your_actual_price_id" # Можно оставить тестовый или заменить
+  payment_gateway_publishable_key: "pk_test_your_publishable_key" # Можно оставить тестовый
+  payment_gateway_secret_key: "" # Будет взято из PAYMENT_GATEWAY_SECRET_KEY
+  webhook_secret: ""             # Будет взято из WEBHOOK_SECRET
+  currency: "KZT"
+  monthly_amount: 449900 # Лимит в тиынах (4499 KZT). Это будет наш месячный лимит на токены.
+  usd_to_kzt_rate: 515.0
+# Настройки для сессий (если хранить в БД)
+session_db_table: "sessions"
