@@ -2,6 +2,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -42,6 +43,37 @@ func GetPaymentByID(paymentID string) (*models.Payment, error) {
 
 	return &p, nil
 }
+
+// UpdateGatewayInfo обновляет информацию о платеже от шлюза
+func (pdb *PaymentsDB) UpdateGatewayInfo(ctx context.Context, internalPaymentID int64, gatewayOrderID, status string) error {
+	query := `UPDATE payments SET gateway_order_id = $1, status = $2, updated_at = NOW() WHERE id = $3`
+	_, err := pdb.db.ExecContext(ctx, query, gatewayOrderID, status, internalPaymentID)
+	return err
+}
+
+// UpdateStatusByGatewayID обновляет статус платежа по ID заказа в шлюзе
+func (pdb *PaymentsDB) UpdateStatusByGatewayID(ctx context.Context, gatewayOrderID, status string) error {
+	query := `UPDATE payments SET status = $1, updated_at = NOW() WHERE gateway_order_id = $2`
+	_, err := pdb.db.ExecContext(ctx, query, status, gatewayOrderID)
+	return err
+}
+
+// GetPaymentByGatewayID находит платеж по ID заказа в шлюзе
+func (pdb *PaymentsDB) GetPaymentByGatewayID(ctx context.Context, gatewayOrderID string) (*models.Payment, error) {
+	query := `SELECT id, user_id, subscription_id, amount, currency, status, created_at, updated_at FROM payments WHERE gateway_order_id = $1`
+	row := pdb.db.QueryRowContext(ctx, query, gatewayOrderID)
+	
+	var p models.Payment
+	err := row.Scan(&p.ID, &p.UserID, &p.SubscriptionID, &p.Amount, &p.Currency, &p.Status, &p.CreatedAt, &p.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // Платеж не найден
+		}
+		return nil, err
+	}
+	return &p, nil
+}
+
 
 // UpdatePaymentStatus обновляет статус и ID транзакции для существующего платежа
 func UpdatePaymentStatus(paymentID string, newStatus models.PaymentStatus, gatewayTxID string) error {

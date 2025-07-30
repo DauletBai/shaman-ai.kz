@@ -13,6 +13,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type BCCGatewayConfig struct {
+	BaseURL   string `yaml:"base_url"`
+	Login     string `yaml:"login"`
+	Password  string `yaml:"password"`
+	ReturnURL string `yaml:"return_url"`
+	Currency  string `yaml:"currency"`
+}
 type RemoteLLMConfig struct {
 	APIKey                    string  `yaml:"api_key"`
 	APIUrl                    string  `yaml:"api_url"`
@@ -54,7 +61,7 @@ type EmailConfig struct {
 
 type SMSConfig struct {
 	APIURL   string `yaml:"api_url" env:"SMS_GATEWAY_API_URL"`
-	APIKey   string `env:"SMS_GATEWAY_API_KEY"` 
+	APIKey   string `env:"SMS_GATEWAY_API_KEY"`
 	SenderID string `yaml:"sender_id" env:"SMS_GATEWAY_SENDER_ID"`
 }
 
@@ -71,8 +78,9 @@ type Config struct {
 	CSRFAuthKey          string
 	UploadPath           string      `yaml:"upload_path"`
 	Email                EmailConfig `yaml:"email"`
-	SMS           		 SMSConfig     `yaml:"sms"`
+	SMS                  SMSConfig   `yaml:"sms"`
 	TokenMonthlyLimitKZT float64
+	BCCGateway           BCCGatewayConfig `yaml:"bcc_gateway"`
 }
 
 // ... функции getStringEnvOrDefault и getIntEnvOrDefault без изменений ...
@@ -92,10 +100,9 @@ func getIntEnvOrDefault(key string, defaultValue int) int {
 	return defaultValue
 }
 
-
 func LoadConfig(filename string) (*Config, error) {
 	// ... (начало функции без изменений) ...
-    appEnvFromSystem := os.Getenv("APP_ENV")
+	appEnvFromSystem := os.Getenv("APP_ENV")
 	if appEnvFromSystem != "production" {
 		if err := godotenv.Load("configs/.env"); err != nil {
 			slog.Info("configs/.env не найден или ошибка загрузки, это ожидаемо для production или если переменные установлены системно.", "error", err)
@@ -117,9 +124,9 @@ func LoadConfig(filename string) (*Config, error) {
 	if err := yaml.NewDecoder(file).Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("ошибка декодирования YAML из файла '%s': %w", filename, err)
 	}
-	
-    // ... (середина функции без изменений) ...
-    cfg.AppEnv = getStringEnvOrDefault("APP_ENV", cfg.AppEnv)
+
+	// ... (середина функции без изменений) ...
+	cfg.AppEnv = getStringEnvOrDefault("APP_ENV", cfg.AppEnv)
 	isProduction := cfg.AppEnv == "production"
 
 	cfg.BaseURL = getStringEnvOrDefault("BASE_URL", cfg.BaseURL)
@@ -194,7 +201,6 @@ func LoadConfig(filename string) (*Config, error) {
 		slog.Warn("Параметры SMTP (SMTP_HOST, EMAIL_SENDER) не полностью настроены для production. Отправка email может не работать.")
 	}
 
-
 	cfg.UploadPath = getStringEnvOrDefault("UPLOAD_PATH", cfg.UploadPath)
 	if cfg.UploadPath == "" {
 		cfg.UploadPath = "./uploads"
@@ -253,9 +259,9 @@ func LoadConfig(filename string) (*Config, error) {
 	if cfg.Billing.MonthlyAmount == 0 {
 		return nil, fmt.Errorf("billing.monthly_amount не задан или равен 0")
 	}
-    if cfg.Billing.USDToKZTRate <= 0 {
-        return nil, fmt.Errorf("billing.usd_to_kzt_rate не задан или равен 0")
-    }
+	if cfg.Billing.USDToKZTRate <= 0 {
+		return nil, fmt.Errorf("billing.usd_to_kzt_rate не задан или равен 0")
+	}
 
 	cfg.TokenMonthlyLimitKZT = float64(cfg.Billing.MonthlyAmount) / 100.0
 

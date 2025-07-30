@@ -57,9 +57,6 @@ func main() {
 		slog.Info("Общий системный промпт не указан в конфиге, используется дефолтный.")
 	}
 
-	// Загрузка или установка smokingSystemPrompt (если необходимо)
-	// if cfg.RemoteLLM.QuitSmokingSystemPromptPath != "" { ... }
-
 	err = db.InitDB(cfg)
 	if err != nil {
 		slog.Error("Критическая ошибка: не удалось инициализировать базу данных", "error", err)

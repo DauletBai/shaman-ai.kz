@@ -2,11 +2,13 @@
 package handlers
 
 import (
+	"log"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/xml"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"sort"
 	"time"
 
@@ -14,6 +16,8 @@ import (
 	"shaman-ai.kz/internal/db"
 	"shaman-ai.kz/internal/middleware"
 	"shaman-ai.kz/internal/models"
+	"shaman-ai.kz/internal/session"
+	"shaman-ai.kz/internal/payment_gateway/bcc"
 
 	"github.com/alexedwards/scs/v2"
 )
@@ -65,6 +69,152 @@ type BillingHandlers struct {
 	SessionManager *scs.SessionManager
 	Config         *config.Config
 	AppHandlers    *AppHandlers
+	BCCClient *bcc.Client
+}
+
+// HandleCreateBCCPayment - новый обработчик для создания платежа
+func (h *BillingHandler) HandleCreateBCCPayment(w http.ResponseWriter, r *http.Request) {
+	// 1. Получаем пользователя из сессии
+	userID, ok := session.GetUserID(r.Context())
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// 2. Получаем детали подписки из формы/запроса
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid form data", http.StatusBadRequest)
+		return
+	}
+	subscriptionID, err := strconv.ParseInt(r.FormValue("subscription_id"), 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid subscription ID", http.StatusBadRequest)
+		return
+	}
+	
+	// Здесь вы должны получить детали подписки (цену) из БД
+	// Для примера, хардкодим
+	subscription, err := h.DB.GetSubscriptionByID(r.Context(), subscriptionID)
+	if err != nil {
+		log.Printf("Error getting subscription %d: %v", subscriptionID, err)
+		http.Error(w, "Subscription not found", http.StatusNotFound)
+		return
+	}
+
+
+	// 3. Создаем запись о платеже в нашей БД со статусом "pending"
+	newPayment := &models.Payment{
+		UserID:         userID,
+		SubscriptionID: subscription.ID,
+		Amount:         subscription.Price,
+		Currency:       h.Cfg.BCCGateway.Currency,
+		Status:         "pending",
+		GatewayName:    "bcc",
+	}
+	
+	err = h.DB.CreatePayment(r.Context(), newPayment)
+	if err != nil {
+		log.Printf("Error creating payment record for user %d: %v", userID, err)
+		http.Error(w, "Failed to initialize payment", http.StatusInternalServerError)
+		return
+	}
+
+	// 4. Формируем запрос к API банка
+	user, err := h.DB.GetUserByID(r.Context(), userID)
+	if err != nil {
+		log.Printf("Error getting user %d: %v", userID, err)
+		http.Error(w, "User not found", http.StatusInternalServerError)
+		return
+	}
+	
+	createOrderReq := bcc.CreateOrderRequest{
+		Amount:          newPayment.Amount,
+		MerchantOrderID: strconv.FormatInt(newPayment.ID, 10), // Используем наш ID платежа как ID заказа
+		Currency:        newPayment.Currency,
+		Description:     "Оплата подписки: " + subscription.Name,
+		Client: bcc.ClientInfo{
+			Email: user.Email,
+			Name:  user.Name,
+			Phone: user.Phone,
+		},
+		Options: bcc.Options{
+			ReturnURL: h.Cfg.BCCGateway.ReturnURL,
+		},
+	}
+
+	// 5. Отправляем запрос в банк
+	result, err := h.BCCClient.CreateOrder(r.Context(), createOrderReq)
+	if err != nil {
+		log.Printf("Error creating BCC order for payment %d: %v", newPayment.ID, err)
+		// Обновляем статус нашего платежа на "failed"
+		_ = h.DB.UpdateGatewayInfo(r.Context(), newPayment.ID, "", "failed")
+		http.Error(w, "Could not contact payment provider", http.StatusInternalServerError)
+		return
+	}
+	
+	// 6. Сохраняем ID заказа от банка и обновляем статус
+	err = h.DB.UpdateGatewayInfo(r.Context(), newPayment.ID, result.GatewayOrderID, "processing")
+	if err != nil {
+		log.Printf("CRITICAL: Failed to save GatewayOrderID %s for payment %d: %v", result.GatewayOrderID, newPayment.ID, err)
+		http.Error(w, "Payment processing error", http.StatusInternalServerError)
+		return
+	}
+
+
+	// 7. Перенаправляем пользователя на страницу оплаты
+	http.Redirect(w, r, result.PaymentURL, http.StatusSeeOther)
+}
+
+
+// HandleBCCSuccess - обработчик для успешного callback
+func (h *BillingHandler) HandleBCCSuccess(w http.ResponseWriter, r *http.Request) {
+    // Внимание: В документации банка неясно, как именно передается ID заказа при редиректе.
+    // Предположим, что он будет в параметре ?order_id=
+    // Это нужно будет уточнить у банка и скорректировать.
+	gatewayOrderID := r.URL.Query().Get("order_id")
+	if gatewayOrderID == "" {
+		log.Println("BCC Success callback: gateway_order_id not found in query params")
+		http.Error(w, "Invalid payment callback", http.StatusBadRequest)
+		return
+	}
+
+	// Проверяем статус заказа в системе банка
+	statusResp, err := h.BCCClient.GetOrderStatus(r.Context(), gatewayOrderID)
+	if err != nil {
+		log.Printf("Error getting order status for %s: %v", gatewayOrderID, err)
+		http.Redirect(w, r, "/payment-failed", http.StatusSeeOther) // Перенаправляем на страницу ошибки
+		return
+	}
+	
+	if len(statusResp.Orders) > 0 {
+		orderStatus := statusResp.Orders[0].Status
+		
+		// "charged" - средства списаны (для одностадийной схемы)
+		// "authorized" - средства захолдированы (для двухстадийной)
+		if orderStatus == "charged" || orderStatus == "authorized" {
+			// Находим наш платеж по gateway_order_id
+			payment, err := h.DB.GetPaymentByGatewayID(r.Context(), gatewayOrderID)
+			if err != nil || payment == nil {
+				log.Printf("CRITICAL: Payment not found for gateway_order_id %s", gatewayOrderID)
+				http.Error(w, "Payment data mismatch", http.StatusInternalServerError)
+				return
+			}
+			
+			// Обновляем статус платежа в нашей БД
+			_ = h.DB.UpdateStatusByGatewayID(r.Context(), gatewayOrderID, "success")
+			
+			// Активируем подписку для пользователя
+			_ = h.DB.ActivateUserSubscription(r.Context(), payment.UserID, payment.SubscriptionID) // Вам нужно будет реализовать этот метод
+			
+			// Перенаправляем на страницу успеха в личном кабинете
+			http.Redirect(w, r, "/dashboard?payment=success", http.StatusSeeOther)
+			return
+		}
+	}
+	
+	// Если статус другой, считаем платеж неуспешным
+	_ = h.DB.UpdateStatusByGatewayID(r.Context(), gatewayOrderID, "failed")
+	http.Redirect(w, r, "/payment-failed", http.StatusSeeOther)
 }
 
 func NewBillingHandlers(sm *scs.SessionManager, cfg *config.Config, ah *AppHandlers) *BillingHandlers {
